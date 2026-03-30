@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Queue Detail — QueueLens</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Space Grotesk', sans-serif; background: #030712; color: #f9fafb; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function StatusBadge({ status }) {
+      const styles = {
+        failed:    'bg-red-900/50 text-red-400 border border-red-800/60',
+        completed: 'bg-gray-800 text-gray-400 border border-gray-700',
+        active:    'bg-blue-900/50 text-blue-400 border border-blue-800/60',
+        waiting:   'bg-yellow-900/30 text-yellow-400 border border-yellow-800/40',
+      };
+      return (
+        <span className={`mono text-xs px-2 py-0.5 rounded-full font-medium ${styles[status] || styles.waiting}`}>
+          {status}
+        </span>
+      );
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    function App() {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      const queueName = window.location.pathname.split('/queue/')[1];
+
+      useEffect(() => {
+        fetch(`/api/queues/${encodeURIComponent(queueName)}`)
+          .then(r => {
+            if (!r.ok) throw new Error('Queue not found');
+            return r.json();
+          })
+          .then(d => { setData(d); setLoading(false); })
+          .catch(e => { setError(e.message); setLoading(false); });
+      }, [queueName]);
+
+      if (loading) return (
+        <div className="min-h-screen flex items-center justify-center">
+          <span className="text-gray-500 text-sm">Loading...</span>
+        </div>
+      );
+
+      if (error) return (
+        <div className="min-h-screen flex items-center justify-center">
+          <span className="text-red-400 text-sm">{error}</span>
+        </div>
+      );
+
+      const { queue, jobs } = data;
+      const failedJobs = jobs.filter(j => j.status === 'failed');
+      const otherJobs = jobs.filter(j => j.status !== 'failed');
+      const allJobs = [...failedJobs, ...otherJobs];
+
+      return (
+        <div className="min-h-screen">
+          <div className="flex">
+            {/* Sidebar */}
+            <aside className="w-56 min-h-screen bg-gray-950 border-r border-gray-800 fixed left-0 top-0">
+              <div className="px-5 h-14 flex items-center border-b border-gray-800">
+                <a href="/" className="text-white font-bold text-lg tracking-tight">
+                  Queue<span className="text-green-400">Lens</span>
+                </a>
+              </div>
+              <nav className="p-3">
+                <a href="/dashboard" className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors mb-1">
+                  ← All queues
+                </a>
+              </nav>
+            </aside>
+
+            {/* Main */}
+            <main className="ml-56 flex-1 min-h-screen">
+              <header className="h-14 border-b border-gray-800 flex items-center px-8 bg-gray-950/80 backdrop-blur sticky top-0 z-10">
+                <nav className="text-sm text-gray-500 flex items-center gap-2">
+                  <a href="/dashboard" className="hover:text-white transition-colors">Dashboard</a>
+                  <span>/</span>
+                  <span className="text-white">{queue.name}</span>
+                </nav>
+              </header>
+
+              <div className="p-8">
+                {/* Stats bar */}
+                <div className="grid grid-cols-4 gap-4 mb-8">
+                  {[
+                    { label: 'waiting',   value: queue.waiting,   color: 'text-yellow-400' },
+                    { label: 'active',    value: queue.active,    color: 'text-blue-400' },
+                    { label: 'completed', value: queue.completed, color: 'text-gray-400' },
+                    { label: 'failed',    value: queue.failed,    color: queue.failed > 0 ? 'text-red-400' : 'text-gray-500' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+                      <div className={`text-2xl font-bold mono ${s.color}`}>{s.value.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-1">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Job table */}
+                <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h2 className="text-white font-semibold">Jobs</h2>
+                    <span className="text-xs text-gray-500">{jobs.length} total · {failedJobs.length} failed</span>
+                  </div>
+                  {allJobs.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500 text-sm">No jobs found for this queue.</div>
+                  ) : (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-xs text-gray-500 uppercase tracking-widest border-b border-gray-800">
+                          <th className="text-left px-5 py-3">Job ID</th>
+                          <th className="text-left px-5 py-3">Status</th>
+                          <th className="text-left px-5 py-3">Created</th>
+                          <th className="text-left px-5 py-3">Attempts</th>
+                          <th className="text-left px-5 py-3">Last Error</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allJobs.map(job => (
+                          <tr
+                            key={job.id}
+                            onClick={() => window.location.href = `/dashboard/job/${job.id}`}
+                            className="border-b border-gray-800 last:border-0 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                          >
+                            <td className="px-5 py-3.5 mono text-sm text-gray-300">{job.id}</td>
+                            <td className="px-5 py-3.5"><StatusBadge status={job.status} /></td>
+                            <td className="px-5 py-3.5 text-sm text-gray-400">{formatDate(job.created_at)}</td>
+                            <td className="px-5 py-3.5 text-sm text-gray-400">{job.attempts}/{job.max_attempts}</td>
+                            <td className="px-5 py-3.5 text-sm text-red-400 max-w-xs truncate">
+                              {job.error_message
+                                ? job.error_message.substring(0, 60) + (job.error_message.length > 60 ? '...' : '')
+                                : <span className="text-gray-600">—</span>
+                              }
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
