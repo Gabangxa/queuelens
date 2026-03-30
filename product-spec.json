@@ -1,0 +1,174 @@
+{
+  "spec_version": "1.0.0",
+  "current_stage": "mockup",
+  "locked_fields": [
+    "problem.statement",
+    "problem.evidence",
+    "user.primary.job_to_be_done",
+    "identity.idea_id"
+  ],
+  "identity": {
+    "idea_id": "a3f7c2d1-8b4e-4f9a-b6c1-2d3e5f7a9b0c",
+    "solution_name": "QueueLens",
+    "slug": "polyglot-queue-monitor",
+    "created_at": "2026-03-30T07:37:00Z",
+    "repo_url": "",
+    "replit_url": ""
+  },
+  "problem": {
+    "statement": "Polyglot engineering teams running BullMQ, Sidekiq, and Celery in production have no single hosted dashboard to monitor all job queues — they either maintain 2-3 separate self-hosted UIs or have zero visibility into failures.",
+    "evidence": [
+      {
+        "source": "GitHub — BullMQ repo issues",
+        "url": "https://github.com/taskforcesh/bullmq",
+        "summary": "Developers request cross-framework visibility; Taskforce.sh at $95/mo is BullMQ-only."
+      },
+      {
+        "source": "Reddit r/node — job queue monitoring threads",
+        "url": "https://reddit.com/r/node",
+        "summary": "Common complaint: no affordable hosted option that works across Node.js + Ruby/Python stacks."
+      }
+    ],
+    "severity": "hair_on_fire",
+    "frequency": "daily",
+    "existing_solutions": [
+      { "name": "Taskforce.sh", "pricing": "$95/mo", "weakness": "BullMQ-only; expensive" },
+      { "name": "Bull Board", "pricing": "Free", "weakness": "Self-hosted only; must embed in app code" },
+      { "name": "Sidekiq Pro", "pricing": "$99/mo", "weakness": "Ruby/Sidekiq-only; not a standalone hosted dashboard" },
+      { "name": "Flower", "pricing": "Free", "weakness": "Celery-only; no hosted option; dated UI" }
+    ]
+  },
+  "user": {
+    "primary": {
+      "description": "Solo founder or 2-5 person startup running background jobs across multiple frameworks in production",
+      "job_to_be_done": "When a job fails in production / I want to know immediately and see the full context (payload, stack trace, attempts) in one place / so I can fix it before my customer notices",
+      "willingness_to_pay": "medium",
+      "willingness_to_pay_notes": "$19-$49/mo based on Sentry ($26/mo), Honeybadger ($29/mo), and Taskforce.sh ($95/mo) comparables",
+      "acquisition_channel": "hacker_news"
+    }
+  },
+  "monetisation": {
+    "model": "subscription",
+    "price_points": [
+      {
+        "name": "Indie",
+        "price_usd": 19,
+        "cadence": "monthly",
+        "features": ["5 connections", "All frameworks", "30-day history", "3 alert rules", "Email alerts"]
+      },
+      {
+        "name": "Pro",
+        "price_usd": 49,
+        "cadence": "monthly",
+        "features": ["Unlimited connections", "90-day history", "Unlimited alerts", "Slack + webhook"]
+      }
+    ],
+    "payment_provider": "stripe",
+    "distribution": [
+      { "channel": "hacker_news", "asset_type": "post", "notes": "Show HN post targeting polyglot stack developers" },
+      { "channel": "github", "asset_type": "readme_badge", "notes": "BullMQ GitHub discussions sponsorship" }
+    ]
+  },
+  "scope": {
+    "mvp": {
+      "in": [
+        {
+          "id": "f1",
+          "name": "Queue dashboard",
+          "description": "Single view of all connected queues with waiting/active/completed/failed counts",
+          "rationale": "Directly serves JTBD: see all job queue status in one place"
+        },
+        {
+          "id": "f2",
+          "name": "Failed job drill-down",
+          "description": "Click a queue to see failed jobs; click a job to see payload, error, stack trace",
+          "rationale": "Directly serves JTBD: see full context of a failure to fix it"
+        },
+        {
+          "id": "f3",
+          "name": "Retry job action",
+          "description": "One-click retry of a failed job from the job detail page",
+          "rationale": "Directly serves JTBD: fix failures before the customer notices"
+        }
+      ],
+      "out": [
+        { "name": "Sidekiq / Celery / pg-boss support", "reason": "BullMQ-only for v0.1", "deferred_to": "mmp" },
+        { "name": "Slack / webhook alerts", "reason": "Email-first for MVP", "deferred_to": "mmp" },
+        { "name": "Historical charts", "reason": "Table view sufficient for MVP", "deferred_to": "mmp" },
+        { "name": "Multi-user / teams / SSO", "reason": "Single user for MVP", "deferred_to": "future" },
+        { "name": "Billing / payment integration", "reason": "Ship free first, add billing at v0.2", "deferred_to": "mmp" }
+      ],
+      "core_flow": [
+        "User visits /dashboard",
+        "Sees 3 queues with counts (email-sends, image-processing, pdf-exports)",
+        "Notices red failed count on email-sends (3) and pdf-exports (12)",
+        "Clicks email-sends → queue detail shows 3 failed jobs",
+        "Clicks job j-8821 → job detail shows payload JSON, SMTP error, stack trace",
+        "Clicks Retry Job → success toast confirms retry queued",
+        "Returns to dashboard"
+      ]
+    },
+    "mmp": {
+      "additions": [
+        "Real BullMQ Redis connection (paste URL, auto-discover queues)",
+        "Email alerts on queue failure threshold",
+        "Stripe billing for Indie and Pro tiers",
+        "Magic-link auth (email, no password)"
+      ],
+      "non_negotiables": [
+        "Connection string encrypted at rest (AES-256)",
+        "Failed job alert fires within 60 seconds of threshold breach",
+        "Stripe checkout completes without error on test card",
+        "Magic-link login works end-to-end in production"
+      ]
+    }
+  },
+  "tech": {
+    "stack": {
+      "frontend": "React via CDN (Babel standalone, no build step)",
+      "backend": "Node.js + Express",
+      "database": "SQLite via better-sqlite3",
+      "auth": "magic-link (mmp phase)",
+      "payments": "Stripe (mmp phase)"
+    },
+    "replit_config": {
+      "run_command": "node server.js",
+      "language": "nodejs-20",
+      "entrypoint": "server.js"
+    },
+    "env_vars": [],
+    "external_services": [],
+    "decision_log": []
+  },
+  "gates": {
+    "research_complete": {
+      "status": "passed",
+      "evaluated_by": "research-agent",
+      "evaluated_at": "2026-03-30T07:37:00Z",
+      "notes": "Research complete. Score 22/25. Slug: polyglot-queue-monitor"
+    },
+    "scope_approved": {
+      "status": "pending",
+      "notes": "Awaiting human review of scope and monetisation model"
+    },
+    "mvp_functional": { "status": "pending" },
+    "ship_approved": { "status": "pending" },
+    "mmp_complete": { "status": "pending" }
+  },
+  "_runs": [
+    {
+      "agent": "research-agent",
+      "started_at": "2026-03-30T07:37:00Z",
+      "completed_at": "2026-03-30T07:37:00Z",
+      "status": "completed",
+      "stage_before": "research",
+      "stage_after": "mockup"
+    },
+    {
+      "agent": "mockup-agent",
+      "started_at": "2026-03-30T07:40:00Z",
+      "status": "running",
+      "stage_before": "mockup"
+    }
+  ]
+}
